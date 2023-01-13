@@ -1,0 +1,94 @@
+# -*- coding: utf-8 -*-
+"""
+from url_manager import UrlManager
+from log import MyLog
+from html_downloader import HtmlDownloader 
+from html_parser import HtmlParser
+from html_outputer import HtmlOutputer
+import time
+import random
+
+class SpiderMain():
+ 
+    def __init__(self):
+        self.urls = UrlManager()
+        self.log = MyLog("spider_main","logs")
+        self.downloader = HtmlDownloader()
+        self.parser = HtmlParser()
+        self.outputer = HtmlOutputer()
+        #self.util=utill.DBConn()
+
+
+    def craw(self,root_url):
+        areas = {
+                "gulou":100, "jianye":72, "qinhuai":100, 
+                "xuanwu":67,"yuhuatai":32, "qixia":62,
+                "baijiahu":33, "chalukou1":26,"jiangningqita11":3,
+                "dongshanzhen":29, "jiangningdaxuecheng":15, "jiulonghu":12,
+                "jiangjundadao11":22, "kexueyuan":9, "qilinzhen":42,
+                "tiexinqiao":9, "pukou":100, "liuhe":1,
+                }
+
+        
+        for area,pg_sum in areas.items():
+            for num in range(1, pg_sum+1):
+                pg_url = root_url + area + "/pg" + str(num) + "/"
+                self.log.logger.info("Page address：" + pg_url)
+                print("Page address" + pg_url)
+                try:
+                    html_cont = self.downloader.download(pg_url)
+                except Exception as e:
+                    self.log.logger.error("The download page is abnormal. Procedure:" + repr(e))
+                    time.sleep(60*30)
+                else:
+                    try:
+                        ershoufang_urls = self.parser.get_erhoufang_urls(html_cont)
+                    except Exception as e:
+                        self.log.logger.error("Page parsing is abnormal. Procedure" + repr(e))
+                    else:
+                        self.urls.add_new_urls(ershoufang_urls)
+                        time.sleep(random.randint(0,3))
+        
+        time.sleep(60*20)                
+        id = 1
+        stop = 1
+        while self.urls.has_new_url():
+            #2.1 获取url
+            try:
+                detail_url = self.urls.get_new_url()
+                self.log.logger.info("Page address" + detail_url)
+                print("Page address" + detail_url)
+            except Exception as e:
+                print("The concatenated address is abnormal. Procedure")
+                self.log.logger.error("The concatenated address is abnormal. Procedure" + detail_url)
+            
+            try:
+                detail_html = self.downloader.download(detail_url)
+            except Exception as e:
+                self.log.logger.error("Download exception" + repr(e))
+                self.urls.add_new_url(detail_url)
+                time.sleep(60*30)
+            else:
+                try:
+                    ershoufang_data = self.parser.get_ershoufang_data(detail_html,id)
+                except Exception as e:
+                    self.log.logger.error("Parsing exception" + repr(e))
+                else:
+                    try:
+                        self.outputer.collect_data(ershoufang_data)
+                    except Exception as e:
+                        self.log.logger.error("Output exception" + repr(e))
+                    else:
+                        print(id)
+                        id = id + 1
+                        stop = stop + 1
+                        time.sleep(random.randint(0,3))
+                        if stop == 2500:
+                            stop = 1;
+                            time.sleep(60*20)
+            
+
+if __name__ == "__main__":
+    root_url = "https://nj.lianjia.com/ershoufang/"
+    obj_spider = SpiderMain()
+    obj_spider.craw(root_url)
